@@ -121,29 +121,35 @@ def _default_idle() -> dict:
     }
 
 
-def _apply_desktop_to_plist(plist: dict, desktop: dict) -> dict:
-    """Return a new plist with *desktop* applied to all sections."""
+def _apply_desktop_to_plist(plist: dict, desktop: dict, idle: dict | None = None) -> dict:
+    """Return a new plist with *desktop* and *idle* applied to all sections.
+
+    If *idle* is None, the existing Idle config is preserved.
+    """
     plist = dict(plist)  # shallow copy
 
-    idle = plist.get("AllSpacesAndDisplays", {}).get("Idle", _default_idle())
+    fallback_idle = plist.get("AllSpacesAndDisplays", {}).get("Idle", _default_idle())
+
+    def _resolve_idle(section_idle):
+        return idle if idle is not None else section_idle
 
     plist["AllSpacesAndDisplays"] = {
         "Desktop": desktop,
-        "Idle": idle,
+        "Idle": _resolve_idle(fallback_idle),
         "Type": "individual",
     }
     plist["SystemDefault"] = {
         "Desktop": desktop,
-        "Idle": idle,
+        "Idle": _resolve_idle(fallback_idle),
         "Type": "individual",
     }
 
     displays = dict(plist.get("Displays", {}))
     for display_id in displays:
-        idle_d = displays[display_id].get("Idle", idle)
+        idle_d = displays[display_id].get("Idle", fallback_idle)
         displays[display_id] = {
             "Desktop": desktop,
-            "Idle": idle_d,
+            "Idle": _resolve_idle(idle_d),
             "Type": "individual",
         }
     plist["Displays"] = displays
@@ -152,18 +158,18 @@ def _apply_desktop_to_plist(plist: dict, desktop: dict) -> dict:
     for space_id in spaces:
         space = dict(spaces[space_id])
         if "Default" in space:
-            idle_s = space["Default"].get("Idle", idle)
+            idle_s = space["Default"].get("Idle", fallback_idle)
             space["Default"] = {
                 "Desktop": desktop,
-                "Idle": idle_s,
+                "Idle": _resolve_idle(idle_s),
                 "Type": "individual",
             }
         if "Displays" in space:
             for disp_id in space["Displays"]:
-                idle_sd = space["Displays"][disp_id].get("Idle", idle)
+                idle_sd = space["Displays"][disp_id].get("Idle", fallback_idle)
                 space["Displays"][disp_id] = {
                     "Desktop": desktop,
-                    "Idle": idle_sd,
+                    "Idle": _resolve_idle(idle_sd),
                     "Type": "individual",
                 }
         spaces[space_id] = space
@@ -177,7 +183,7 @@ def _apply_desktop_to_plist(plist: dict, desktop: dict) -> dict:
 # ---------------------------------------------------------------------------
 
 def build_folder_plist(folder: Path, shuffle_id: str, existing: dict) -> dict:
-    """Return a modified *existing* plist that uses *folder* for all displays/spaces."""
+    """Return a modified *existing* plist that uses *folder* for desktop AND screensaver."""
     config_blob = _build_folder_config(folder)
     options_blob = _build_shuffle_options(shuffle_id)
     desktop = _make_desktop_entry(
@@ -185,7 +191,13 @@ def build_folder_plist(folder: Path, shuffle_id: str, existing: dict) -> dict:
         "com.apple.wallpaper.choice.image",
         options_blob,
     )
-    return _apply_desktop_to_plist(existing, desktop)
+    # Use the same folder for the screensaver (Idle)
+    idle = _make_desktop_entry(
+        config_blob,
+        "com.apple.wallpaper.choice.image",
+        options_blob,
+    )
+    return _apply_desktop_to_plist(existing, desktop, idle=idle)
 
 
 def build_reset_plist(backup: dict) -> dict:
@@ -197,7 +209,8 @@ def build_default_plist(existing: dict) -> dict:
     """Build a plist pointing to the system default wallpaper (fallback for reset)."""
     config_blob = _build_file_config(DEFAULT_WALLPAPER)
     desktop = _make_desktop_entry(config_blob, "com.apple.wallpaper.choice.image")
-    return _apply_desktop_to_plist(existing, desktop)
+    idle = _default_idle()
+    return _apply_desktop_to_plist(existing, desktop, idle=idle)
 
 
 # ---------------------------------------------------------------------------

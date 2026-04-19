@@ -154,22 +154,24 @@ def setup_logging(verbose: bool = False) -> None:
     root = logging.getLogger()
 
     if root.handlers:
-        # Already initialised — only escalate to DEBUG, never downgrade
+        # Already initialised — only escalate to DEBUG console output, never downgrade
         if verbose:
-            root.setLevel(level)
             for h in root.handlers:
-                h.setLevel(level)
+                if isinstance(h, RichHandler):
+                    h.setLevel(logging.DEBUG)
         return
 
-    root.setLevel(level)
+    root.setLevel(logging.DEBUG)
 
     # Rich stderr handler for interactive use
+    # Non-verbose: only warnings/errors (user-facing output uses console.print)
+    # Verbose: show all log levels on the console
     rich_handler = RichHandler(
         rich_tracebacks=True,
         show_path=False,
         markup=True,
     )
-    rich_handler.setLevel(level)
+    rich_handler.setLevel(logging.DEBUG if verbose else logging.WARNING)
     root.addHandler(rich_handler)
 
     # Rotating file handler for post-hoc debugging

@@ -127,12 +127,18 @@ class TestDesktopPureFunctions:
         assert cfg["type"] == "imageFolder"
         assert "active" in cfg["url"]["relative"]
 
-    def test_build_folder_plist_preserves_idle(self):
-        from livewall.desktop import build_folder_plist, _default_idle
-        idle = _default_idle()
-        existing = {"AllSpacesAndDisplays": {"Idle": idle}}
-        result = build_folder_plist(Path("/tmp/active"), "shuffle_every_1_minute", existing)
-        assert result["AllSpacesAndDisplays"]["Idle"] == idle
+    def test_build_folder_plist_sets_idle_to_same_folder(self):
+        from livewall.desktop import build_folder_plist
+        result = build_folder_plist(Path("/tmp/active"), "shuffle_every_1_minute", {})
+        desktop_cfg = plistlib.loads(
+            result["AllSpacesAndDisplays"]["Desktop"]["Content"]["Choices"][0]["Configuration"]
+        )
+        idle_cfg = plistlib.loads(
+            result["AllSpacesAndDisplays"]["Idle"]["Content"]["Choices"][0]["Configuration"]
+        )
+        assert desktop_cfg["type"] == "imageFolder"
+        assert idle_cfg["type"] == "imageFolder"
+        assert desktop_cfg["url"] == idle_cfg["url"]
 
     def test_build_reset_plist_returns_backup(self):
         from livewall.desktop import build_reset_plist

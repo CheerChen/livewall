@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.2.0] - 2026-04-19
+
+### Added
+
+- **Screensaver sync** — `apply` now sets both Desktop and Idle (screensaver) to the same image folder; `reset` restores both
+
+### Changed
+
+- **Cleaner CLI output** — default mode shows only concise `console.print` messages; `log.info` details hidden unless `-v` is passed
+
 ## [0.1.0] - 2026-04-19
 
 ### Added
